@@ -3,35 +3,9 @@
 # 
 # Author: Paula Soto
 #
-# Date: April 14, 2025
+# Last updated: April 14, 2025
 #
 # ---------------------------------------------
-
-# set up 
-
-library(dplyr)
-library(readr)
-library(raster)
-library(round)
-library(stringr)
-library(lubridate)
-
-# OBJECTS --------------------------------------
-
-# path to drift csv data that is laid out in | DateTime | Real Temp | Drone Temp | columns 
-# DateTime should be laid out as yyyy-mm-dd hh:mm:ss in csv for best result with processing
-drift_data_csv <- "data/exampleDriftData.csv"
-
-# path where rasters are located
-raster_filepath <- "C:/Users/sotop/Documents/Drone Projects/Cedardownstream_005_Feb2025/thermal_processed_kelvin/11-04-2025 1538-19"
-
-# path where you want corrected rasters to be output - will create a folder if it doesn't already exist
-
-output_location <- "C:/Users/sotop/Documents/Drone Projects/Cedardownstream_005_Feb2025/Thermal_drift_corrected"
-
-
-
-# CAN'T DO WINTER TEMPS YET - ADD FEATURE
 
 
 
@@ -133,7 +107,7 @@ correctTemperatureDrift <- function(drift_data_csv, raster_filepath, output_loca
     
   }
   
-  
+  print("Finished correcting rasters")
   
   
 }
