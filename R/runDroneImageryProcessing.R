@@ -16,15 +16,16 @@ library(fs)
 source("R/droneImageryProcessingFunctions.R")
 
 # Set the directory where you are running that drone project out of
-wk_dir <- "C:/Users/sotop/Documents/Technical Projects/2024/CoquitlamThermal"
+wk_dir <- "C:/Users/sotop/Documents/Drone Projects"
 
 
 # RUN TO SEPARATE RGB AND THERMAL FILES -------------------------------------------
 
-# Folder name where all the raw T & RGB drone images are that you want to separate - Location should be within working folder listed above
+# Folder name where all the raw T & RGB drone images are that you want to separate 
+# - Location should be within working folder listed above
 # (even if they're in multiple folders within this folder this will work)
 
-original_imagery <- "Original"
+original_imagery <- "/DJI_202502131136_005_cedardownstream"
 
 # run function which separates the imagery into two folders: thermal_raw and RGB
 separateImageryTypes(wk_dir, folder_name, original_imagery)
@@ -38,7 +39,7 @@ separateImageryTypes(wk_dir, folder_name, original_imagery)
 # "Coq_Riv_Aug24_0001_T.JPG" for thermal and  "Coq_Riv_Aug24_0001_V.JPG" for RGB
 
 # select your files base name
-file_base_name <- "Coq_Riv_Aug24"
+file_base_name <- "Cedar_downstream_005_Feb2025"
 
 
 # This pattern will be used for the selection, and then renaming of your files. 

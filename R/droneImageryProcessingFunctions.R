@@ -43,6 +43,12 @@ separateImageryTypes <- function(wk_dir, folder_name, original_imagery){
                                   full.names = TRUE, 
                                   recursive = TRUE)
   
+  #RBG again, sometimes file name ends with W, other times with V
+  RGB_files_to_copy <- list.files(path = file.path(wk_dir, original_imagery), 
+                                  pattern = "W\\.JPG$", 
+                                  full.names = TRUE, 
+                                  recursive = TRUE)
+  
   
   # copy T files
   file_copy(T_files_to_copy, thermal_raw_folder, overwrite = TRUE)
