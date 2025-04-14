@@ -1,4 +1,13 @@
-# tool for correcting for drone temperature drift 
+# ---------------------------------------------
+# Purpose: tool for correcting for drone temperature drift 
+# 
+# Author: Paula Soto
+#
+# Date: April 14, 2025
+#
+# ---------------------------------------------
+
+# set up 
 
 library(dplyr)
 library(readr)
@@ -6,6 +15,8 @@ library(raster)
 library(round)
 library(stringr)
 library(lubridate)
+
+# OBJECTS --------------------------------------
 
 # path to drift csv data that is laid out in | DateTime | Real Temp | Drone Temp | columns 
 # DateTime should be laid out as yyyy-mm-dd hh:mm:ss in csv for best result with processing
