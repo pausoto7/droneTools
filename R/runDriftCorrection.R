@@ -4,8 +4,7 @@
 # script which uses functions in driftCorrection to correct for temperature drift
 # in DJI imagery which has been converted on thermoConverter into readable .tiff files
 #
-#
-
+# vb
 
 # set up 
 
@@ -23,14 +22,14 @@ source("R/droneImageryProcessingFunctions.R")
 
 # path to drift csv data that is laid out in | DateTime | Real Temp | Drone Temp | columns 
 # DateTime should be laid out as yyyy-mm-dd hh:mm:ss in csv for best result with processing
-drift_data_csv <- "data/exampleDriftData.csv"
+drift_data_csv <- "data/July2025North_DriftData.csv"
 
 # path where rasters are located
-raster_filepath <- "C:/Users/sotop/Documents/Drone Projects/Cedardownstream_005_Feb2025/thermal_processed_kelvin/11-04-2025 1538-19"
+raster_filepath <- "C:/Users/sotop/Documents/Drone Projects/Coquitlam/20250718_Coquitlam_site Visit_JRR/Drone/Processed/North Thermal TIFF"
 
 # path where you want corrected rasters to be output - will create a folder if it doesn't already exist
 
-output_location <- "C:/Users/sotop/Documents/Drone Projects/Cedardownstream_005_Feb2025/Thermal_drift_corrected"
+output_location <- "C:/Users/sotop/Documents/Drone Projects/Coquitlam/20250718_Coquitlam_site Visit_JRR/Drone/Processed/North Thermal_drift_corrected"
 
 
 
