@@ -70,6 +70,7 @@ plot(original_raster)
 ## 8. apply the calibration function to the original raster and create a new raster
 calibrated_raster <- original_raster*m+b
 
+# getting rid of NA's because google said sometimes they cause problems
 calibrated_raster[!is.finite(calibrated_raster[])] <- NA
 
 
