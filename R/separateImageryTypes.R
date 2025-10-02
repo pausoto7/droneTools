@@ -15,8 +15,7 @@ library(fs)
 
 # Set the working directory (necessary because this script is not set as an R Project)
 
-wk_dir <- "D:/Coquitlam/Coquitlam_July18/DJI_202507181157_009_CoquitlamSouth20250718"
-
+wk_dir <- "D:/Coquitlam/20250818_Coquitlam_SiteVisit_JRR/Drone/Raw/Thermal Photogrammetry/DJI_202508181034_035_CoquitlamSouth20250818"
 
 
 # ORIGINAL_IMAGERY
@@ -80,7 +79,7 @@ separateImageryTypes(wk_dir, "")
 # "Coq_Riv_Aug24_0001_T.JPG" for thermal and  "Coq_Riv_Aug24_0001_V.JPG" for RGB
 
 # select your files base name
-file_base_name <- "Coq_Riv_July30_25"
+file_base_name <- "Coq_Riv_Aug18_25_S"
 
 
 # Get a list of all the image files
