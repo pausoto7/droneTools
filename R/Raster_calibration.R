@@ -43,7 +43,7 @@ input_raster_name <- file.choose()   # opens a file browser
 
 #-------------------------------------------------------------------
 ## 4. Create a file name for the calibrated raster to be exported
-output_raster_name<- sub("\\.tif$", "_CALIBRATED.tif", input_raster_name)
+output_raster_name<- sub("\\.tif$", "_CALIBRATED.img", input_raster_name)
 
 #-------------------------------------------------------------------
 ## 5. Specify the calibration parameters. 
@@ -73,8 +73,7 @@ calibrated_raster <- original_raster*m+b
 # getting rid of NA's because google said sometimes they cause problems
 calibrated_raster[!is.finite(calibrated_raster[])] <- NA
 
-
 #-------------------------------------------------------------------
 ## 9. export the calibrated raster with the new name to the same folder as the original one
-writeRaster(calibrated_raster, output_raster_name, datatype = "FLT4S", overwrite=TRUE)
+writeRaster(calibrated_raster, output_raster_name, overwrite=TRUE)
 plot(calibrated_raster)
