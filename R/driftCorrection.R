@@ -1,18 +1,20 @@
-# ---------------------------------------------
-# Purpose: tool for correcting for drone temperature drift 
-# 
-# Author: Paula Soto
-#
-# Last updated: April 14, 2025
-#
-# ---------------------------------------------
-
-
 library(readr)
 library(dplyr)
 library(lubridate)
 library(terra)
-library(exiftoolr)   
+library(exiftoolr)   # install.packages("exiftoolr"); exiftoolr::install_exiftool() if you don't have exiftool
+
+
+#TEMPORARY TIMEZONE FIX ----------------------------------------------------
+  # Older R versions don't recognise Windows' new "British Columbia Standard Time"
+  # zone (BC moved to permanent UTC-7 in 2026) and throw "unknown timezone" warnings.
+  # After updating R: delete this line, restart R, and run Sys.timezone().
+  # No warning means the new R handles it and this fix isn't needed.
+  Sys.setenv(TZ = "America/Vancouver")
+# ---------------------------------------------------------------------------
+
+
+
 
 correctTemperatureDrift <- function(drift_data_csv,
                                     raster_filepath,
@@ -24,10 +26,31 @@ correctTemperatureDrift <- function(drift_data_csv,
   
   # Prepare drift model ------------------------------------------------------
   
-  fieldData_raw <- read_csv(drift_data_csv, show_col_types = FALSE)
+  # Read DateTime as text so readr doesn't guess, then parse it ourselves
+  fieldData_raw <- read_csv(drift_data_csv, col_types = "cdd")
   colnames(fieldData_raw) <- c("DateTime", "RealTemp", "DroneTemp")
-  fieldData_raw <- fieldData_raw %>%
-    mutate(DateTime = ymd_hms(DateTime, tz = tz))
+  raw_times <- fieldData_raw$DateTime
+  
+  # Accepts 2024-05-03 12:05:25, and what Excel tends to save it as:
+  # 5/3/2024 12:05:25, 5/3/2024 12:05, 5/3/2024 12:05:25 PM. Month/day order is assumed.
+  fieldData_raw$DateTime <- suppressWarnings(parse_date_time(
+    raw_times,
+    orders = c("Ymd HMS", "Ymd HM", "mdY HMS", "mdY HM", "mdY IMS p", "mdY IM p"),
+    tz = tz))
+  
+  bad <- is.na(fieldData_raw$DateTime)
+  if (any(bad)) {
+    stop("Couldn't read these DateTime values in the calibration CSV:\n  ",
+         paste(head(raw_times[bad], 5), collapse = "\n  "),
+         "\nUse the format YYYY-MM-DD HH:MM:SS, e.g. 2024-05-03 12:05:25 ",
+         "(Excel often changes this when it saves).", call. = FALSE)
+  }
+  if (anyNA(fieldData_raw$RealTemp) || anyNA(fieldData_raw$DroneTemp)) {
+    stop("Some RealTemp/DroneTemp values are blank or not numbers in the calibration CSV.",
+         call. = FALSE)
+  }
+  message("Calibration window: ", format(min(fieldData_raw$DateTime)), " to ",
+          format(max(fieldData_raw$DateTime)), " (", nrow(fieldData_raw), " readings)")
   
   # Start time minus 1 second because log(0) is undefined
   minTime <- min(fieldData_raw$DateTime) - seconds(1)
@@ -108,7 +131,9 @@ correctTemperatureDrift <- function(drift_data_csv,
     
     # Copy EXIF, XMP and GPS from the original onto the corrected file.
     # Structural TIFF tags (size, bit depth, etc.) are not copied, so the new pixel data stays intact.
-    exif_call(args = c("-TagsFromFile", file, "-all:all", "-overwrite_original"),
+    # "-xmp" copies the whole XMP block as-is, so DJI and converter tags exiftool
+    # can't write one by one (BandName, GpsStatus, UTCAtExposure...) still come across.
+    exif_call(args = c("-TagsFromFile", file, "-all:all", "-xmp", "-overwrite_original"),
               path = out_file, quiet = TRUE)
     
     results[[i]] <- data.frame(
@@ -136,229 +161,11 @@ correctTemperatureDrift <- function(drift_data_csv,
   invisible(summary_df)
 }
 
-# Example:
-# drift_log <- correctTemperatureDrift(
-#   drift_data_csv  = "bucket_calibration.csv",
-#   raster_filepath = "thermal_tiffs/",
-#   output_location = "thermal_tiffs_corrected/",
-#   tz = "UTC"
-# )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# correctTemperatureDrift <- function(drift_data_csv, raster_filepath, output_location) {
-#   
-#   # Prepare equation data ----------------------------------------------------
-#   
-#   # Upload CSV, convert DateTime, and rename columns
-#   fieldData_raw <- read_csv(drift_data_csv, show_col_types = FALSE)
-#   colnames(fieldData_raw) <- c("DateTime", "RealTemp", "DroneTemp")
-#   fieldData_raw <- fieldData_raw %>%
-#     mutate(DateTime = ymd_hms(DateTime, tz = "UTC"))
-#   
-#   # Start time minus 1 second because log(0) is undefined
-#   minTime <- min(fieldData_raw$DateTime) - seconds(1)
-#   
-#   # Calculate departures and timePassed
-#   fieldData <- fieldData_raw %>%
-#     mutate(departures = DroneTemp - RealTemp) %>%
-#     mutate(timePassed = as.numeric(DateTime - minTime), .before = DateTime)
-#   
-#   if (any(fieldData$timePassed <= 0)) stop("Non-positive time values found!")
-#   
-#   # Log transformation of first two points
-#   log_t1 <- log(fieldData$timePassed[1])
-#   log_t2 <- log(fieldData$timePassed[2])
-#   log_y1 <- log(fieldData$departures[1])
-#   log_y2 <- log(fieldData$departures[2])
-#   
-#   # Fit decay model: departures = k * t^b
-#   b <- (log_y2 - log_y1) / (log_t2 - log_t1)
-#   y1 <- fieldData$departures[1]
-#   t1 <- fieldData$timePassed[1]
-#   k <- y1 / (t1^b)
-#   
-#   # Process rasters ----------------------------------------------------------
-#   
-#   tiff_file_list <- list.files(raster_filepath, full.names = TRUE)
-#   
-#   for (file in tiff_file_list) {
-#     
-#     only_filename <- basename(file)
-#     new_filename <- paste0(sub(".TIFF$", "_corrected.tiff", only_filename, ignore.case = TRUE))
-#     output_filename <- file.path(output_location, new_filename)
-#     
-#     # Read image timestamp from metadata
-#     tiff_metadata <- exifr::read_exif(file)
-#     raster_datetime <- ymd_hms(tiff_metadata$DateTimeOriginal)
-#     
-#     # Compute time and drift
-#     t <- as.numeric(raster_datetime - minTime) 
-#     drift_value <- k * t^b
-#     
-#     # Read raster and apply drift correction (already in Celsius)
-#     tiff <- raster::raster(file)
-#     corrected_values <- raster::values(tiff) - drift_value
-#     raster::values(tiff) <- corrected_values
-#     
-#     # Create output folder if necessary
-#     if (!dir.exists(output_location)) {
-#       dir.create(output_location, recursive = TRUE)
-#       message(sprintf("Created output folder: %s", output_location))
-#     }
-#     
-#     # Save corrected raster
-#     writeRaster(tiff, filename = output_filename, format = "GTiff", overwrite = TRUE)
-#   }
-#   
-#   print("Finished correcting rasters")
-# }
-# 
-
-
-# VERSION WITH KELVIN CORRECTIONS IN IT TO ACCOMODATE THERMOCONVERTER
-
-# 
-# correctTemperatureDrift <- function(drift_data_csv, raster_filepath, output_location ){
-#   
-#   # prepare  equation data ----------------------------------------------------
-#   
-#   # upload csv file, change col into Posixct file type, and rename cols to reduce issues in code
-#   fieldData_raw <- read_csv(drift_data_csv, show_col_types = FALSE)
-#   
-#   # Overwrite column names
-#   colnames(fieldData_raw) <- c("DateTime", "RealTemp", "DroneTemp")
-#   
-#   # Convert DateTime
-#   fieldData_raw <- fieldData_raw %>%
-#     mutate(DateTime = ymd_hms(DateTime, tz = "UTC"))
-#   
-#   # start time minus 1 second because log(0 seconds) is mathematically undefined
-#   minTime <- min(fieldData_raw$DateTime) - seconds(1)
-#   
-#   # add temp diffs and time passed in seconds
-#   fieldData <- fieldData_raw %>%
-#     mutate(departures = DroneTemp-RealTemp) %>%
-#     mutate(timePassed =  as.numeric(DateTime - minTime), .before = DateTime)
-#   
-#   # Log of first and second timePassed
-#   log_t1 <- log(fieldData$timePassed[1])
-#   log_t2 <- log(fieldData$timePassed[2])
-#   
-#   # Log of first and second departures
-#   log_y1 <- log(fieldData$departures[1])
-#   log_y2 <- log(fieldData$departures[2])
-#   
-#   # Calculate b
-#   b <- (log_y2 - log_y1) / (log_t2 - log_t1)
-#   
-#   
-#   # check that all time values are positive
-#   if (any(fieldData$timePassed <= 0)) stop("Non-positive time values found!")
-#   
-#   # Use the first observation
-#   y1 <- fieldData$departures[1]
-#   t1 <- fieldData$timePassed[1]
-#   
-#   # Calculate k
-#   k <- y1 / (t1^b)
-#   
-#   # modify imagery values  ----------------------------------------------------
-#   
-# 
-#   tiff_file_list <- list.files(raster_filepath,
-#                                full.names = TRUE)
-#   
-#   # loop through each raster
-#   for(files in 1:length(tiff_file_list)){
-#     
-#     # set up file input and output names
-#     file <- tiff_file_list[files]
-#     file.path <- dirname(file)
-#     only_filename <- basename(file)
-#     new_filename <- paste0(sub(".TIFF$", "_corrected.tiff", only_filename, ignore.case = TRUE))
-#     output_filename <- paste0(output_location, "/", new_filename)
-#     
-#     # get variables needed for calculations------------------
-#     tiff_metadata <- exifr::read_exif(file)
-#     
-#     raster_datetime <- ymd_hms(tiff_metadata$DateTimeOriginal)
-#     
-#     # calculate time passed
-#     t <- as.numeric(raster_datetime - minTime) 
-#     
-#     # calculate drift value for this raster
-#     drift_value <- k*t^b
-# 
-#     # convert tiff --------------------------------------------
-#     
-#     tiff <- raster::raster(file)
-#     
-#     thermal_values_k <- values(tiff)
-#     
-#     # convert from kelvin to celcius as ThermoConverter outputs in Kelvin
-#     thermal_values_c <- (thermal_values_k/100) - 273.15
-#     
-#     corrected_values <- thermal_values_c - drift_value
-#     
-#     corrected_raster <- tiff
-#     
-#     raster::values(corrected_raster) <- corrected_values
-#     
-#     # if directory doesn't exist create it
-#     if (!dir.exists(output_location)) {
-#       dir.create(output_location, recursive = TRUE)
-#       sprintf("Create output folder located here: %s", output_location)
-#     }
-#     
-#     # write raster with corrected values in Celsius
-#     writeRaster(corrected_raster, filename = output_filename, format = "GTiff", overwrite = TRUE)
-#     
-#   }
-#   
-#   print("Finished correcting rasters")
-#   
-#   
-# }
-# 
-
-
-
-
+drift_log <- correctTemperatureDrift(
+  drift_data_csv  = "C:/Users/sotop/Documents/thermalImagery/bucket_calibration.csv",
+  raster_filepath = "C:/Users/sotop/Documents/thermalImagery/TIR",
+  output_location = "C:/Users/sotop/Documents/thermalImagery/TIR_corrected",
+  tz = "UTC"
+) 
